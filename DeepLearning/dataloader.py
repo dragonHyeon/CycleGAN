@@ -8,19 +8,16 @@ from Lib import UtilLib
 from Common import ConstVar
 
 
-class FACADESDataset(Dataset):
-    def __init__(self, data_dir, direction, mode_train_test):
+class VanGogh2PhotoDataset(Dataset):
+    def __init__(self, data_dir, mode_train_test):
         """
         * FACADESDataset 데이터로더
         :param data_dir: 데이터 디렉터리
-        :param direction: 어디서 어디로의 변환인지 선택
         :param mode_train_test: 학습 / 테스트 모드
         """
 
         # 데이터 해당 디렉터리
         self.data_dir = data_dir
-        # a2b, b2a 변환 방향 선택
-        self.direction = direction
         # 학습 / 테스트 모드
         self.mode_train_test = mode_train_test
 
@@ -57,17 +54,18 @@ class FACADESDataset(Dataset):
         }
 
     def __len__(self):
-        return len(self.files_a)
+        return max(len(self.files_a), len(self.files_b))
 
     def __getitem__(self, item):
-        # a 데이터
-        a = self.transform[self.mode_train_test](Image.open(fp=self.files_a[item]))
-        # b 데이터
-        b = self.transform[self.mode_train_test](Image.open(fp=self.files_b[item]))
 
-        # a 에서 b 로의 변환
-        if self.direction == ConstVar.A2B:
-            return a, b
-        # b 에서 a 로의 변환
-        elif self.direction == ConstVar.B2A:
-            return b, a
+        # a 데이터 인덱스
+        a_index = item % len(self.files_a)
+        # b 데이터 인덱스
+        b_index = item % len(self.files_b)
+
+        # a 데이터
+        a = self.transform[self.mode_train_test](Image.open(fp=self.files_a[a_index]))
+        # b 데이터
+        b = self.transform[self.mode_train_test](Image.open(fp=self.files_b[b_index]))
+
+        return a, b

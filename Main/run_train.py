@@ -1,4 +1,6 @@
-import os, sys, argparse
+import os, sys, argparse, itertools
+
+from DeepLearning import utils
 
 
 def set_path():
@@ -38,12 +40,6 @@ def arguments():
 
     from Common import ConstVar
 
-    # parser 에서 사용될 선택지 목록. 데이터 변환 방향
-    direction_list = [
-        ConstVar.A2B,
-        ConstVar.B2A
-    ]
-
     # parser 생성
     parser = argparse.ArgumentParser(prog="Deep Learning Study Project Train",
                                      description="* Run this to train the model.")
@@ -69,17 +65,6 @@ def arguments():
                         help='set the directory where output files will be saved',
                         default=ConstVar.OUTPUT_DIR,
                         dest='output_dir')
-
-    # a2b, b2a 변환 방향 선택
-    parser.add_argument("--direction",
-                        type=str,
-                        help='direction selection ({0} / {1})'.format(
-                            ConstVar.A2B,
-                            ConstVar.B2A
-                        ),
-                        choices=direction_list,
-                        default=ConstVar.B2A,
-                        dest='direction')
 
     # 체크포인트 파일 저장 및 학습 진행 기록 빈도수
     parser.add_argument("--tracking_frequency",
@@ -123,6 +108,20 @@ def arguments():
                         default=ConstVar.SHUFFLE,
                         dest='shuffle')
 
+    # learning rate 감소 시작 할 epoch 값
+    parser.add_argument("--decay_epoch_num",
+                        type=int,
+                        help='set epoch num to start learning rate decay',
+                        default=ConstVar.DECAY_EPOCH_NUM,
+                        dest='decay_epoch_num')
+
+    # replay buffer 사이즈
+    parser.add_argument("--replay_buffer_max_size",
+                        type=int,
+                        help='set size of replay buffer',
+                        default=ConstVar.REPLAY_BUFFER_MAX_SIZE,
+                        dest='replay_buffer_max_size')
+
     # parsing 한거 가져오기
     args = parser.parse_args()
 
@@ -142,59 +141,70 @@ def run_program(args):
     from Common import ConstVar
     from DeepLearning.train import Trainer
     from DeepLearning.test import Tester
-    from DeepLearning.dataloader import FACADESDataset
-    from DeepLearning.model import GeneratorUNet, Discriminator
-    from DeepLearning.loss import loss_fn_BCE, loss_fn_L1
-    from DeepLearning.metric import bce_loss, l1_loss
+    from DeepLearning.dataloader import VanGogh2PhotoDataset
+    from DeepLearning.model import GeneratorResNet, Discriminator
+    from DeepLearning.loss import loss_fn_GAN, loss_fn_cycle, loss_fn_identity
+    from DeepLearning.metric import GAN_loss, cycle_loss, identity_loss
 
     # GPU / CPU 설정
     device = ConstVar.DEVICE_CUDA if torch.cuda.is_available() else ConstVar.DEVICE_CPU
 
     # 모델 선언
-    modelG = GeneratorUNet()
-    modelD = Discriminator()
+    G_AB = GeneratorResNet()
+    G_BA = GeneratorResNet()
+    D_A = Discriminator()
+    D_B = Discriminator()
     # 각 모델을 해당 디바이스로 이동
-    modelG.to(device)
-    modelD.to(device)
+    G_AB.to(device)
+    G_BA.to(device)
+    D_A.to(device)
+    D_B.to(device)
 
     # optimizer 선언
-    optimizerG = torch.optim.Adam(params=modelG.parameters(),
+    optimizerG = torch.optim.Adam(params=itertools.chain(G_AB.parameters(), G_BA.parameters()),
                                   lr=args.learning_rate,
                                   betas=(0.5, 0.999))
-    optimizerD = torch.optim.Adam(params=modelD.parameters(),
+    optimizerD = torch.optim.Adam(params=itertools.chain(D_A.parameters(), D_B.parameters()),
                                   lr=args.learning_rate,
                                   betas=(0.5, 0.999))
 
     # 학습용 데이터로더 선언
-    train_dataloader = DataLoader(dataset=FACADESDataset(data_dir=args.train_data_dir,
-                                                         direction=args.direction,
-                                                         mode_train_test=ConstVar.MODE_TRAIN),
+    train_dataloader = DataLoader(dataset=VanGogh2PhotoDataset(data_dir=args.train_data_dir,
+                                                               mode_train_test=ConstVar.MODE_TRAIN),
                                   batch_size=args.batch_size,
                                   shuffle=args.shuffle)
 
     # 테스트용 데이터로더 선언
-    test_dataloader = DataLoader(dataset=FACADESDataset(data_dir=args.test_data_dir,
-                                                        direction=args.direction,
-                                                        mode_train_test=ConstVar.MODE_TEST))
+    test_dataloader = DataLoader(dataset=VanGogh2PhotoDataset(data_dir=args.test_data_dir,
+                                                              mode_train_test=ConstVar.MODE_TEST))
+
+    # replay buffer 선언
+    replay_buffer = utils.ReplayBuffer(replay_buffer_max_size=args.replay_buffer_max_size)
 
     # 모델 학습 객체 선언
-    trainer = Trainer(modelG=modelG,
-                      modelD=modelD,
+    trainer = Trainer(G_AB=G_AB,
+                      G_BA=G_BA,
+                      D_A=D_A,
+                      D_B=D_B,
                       optimizerG=optimizerG,
                       optimizerD=optimizerD,
-                      loss_fn_BCE=loss_fn_BCE,
-                      loss_fn_L1=loss_fn_L1,
+                      loss_fn_GAN=loss_fn_GAN,
+                      loss_fn_cycle=loss_fn_cycle,
+                      loss_fn_identity=loss_fn_identity,
                       train_dataloader=train_dataloader,
-                      device=device)
+                      device=device,
+                      replay_buffer=replay_buffer)
 
     # 모델 학습
     trainer.running(num_epoch=args.num_epoch,
                     output_dir=args.output_dir,
+                    decay_epoch_num=args.decay_epoch_num,
                     tracking_frequency=args.tracking_frequency,
                     Tester=Tester,
                     test_dataloader=test_dataloader,
-                    metric_fn_BCE=bce_loss,
-                    metric_fn_L1=l1_loss,
+                    metric_fn_GAN=GAN_loss,
+                    metric_fn_cycle=cycle_loss,
+                    metric_fn_identity=identity_loss,
                     checkpoint_file=args.checkpoint_file)
 
 

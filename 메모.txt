@@ -1,19 +1,17 @@
-# a.shape = torch.Size([1, 2, 3])
-# b.shape = torch.Size([2, 2, 1])
-# c = torch.cat((a, b), dim=0)
-RuntimeError: torch.cat(): Sizes of tensors must match except in dimension 0. Got 3 and 1 in dimension 2 (The offending index is 1)
-cat 함수는 해당 dimension 제외하고는 모두 shape 이 동일해야 한다. dim=0 이면 1, 2, 3, ... 이, dim=1 이면 0, 2, 3, ... 이
+하나의 optimizer 에 두 개의 generator 를 담아서 학습을 진행하는데
+여기서 backward 할 때 각각의 model 에 해당하는 파라미터의 기울기가 알아서 쌓이게 된다
+step 하면 한 번에 학습 진행
+optimizer 여러개 나눠서 쓰나 하나에 모아서 쓰나 큰 차이 없음
 
-utils 에서 imshow(X=a) -> imshow(X=a*0.5+0.5) 로 변경
-이렇게 하니까 출력된 그림 색이 더 정확하게 보임
+model.zero_grad 와 optimizer.zero_grad 에는 차이가 있음
+self.G_AB.zero_grad()
+self.G_BA.zero_grad()
+이렇게 해도 되지만 한줄로
+self.optimizerG.zero_grad()
+이렇게 해도 무방
 
-RuntimeError: Trying to backward through the graph a second time (or directly access saved variables after they have already been freed). Saved intermediate values of the graph are freed when you call .backward() or autograd.grad(). Specify retain_graph=True if you need to backward through the graph a second time or if you need to access saved variables after calling backward.
-lossG_BCE.backward() -> lossG_BCE.backward(retain_graph=True) 이렇게 수정하니까 해결
-연관된 값에 대해 backward 가 여러번 일어나게 되면 다음 backward 차례에 현재 backward 했던 정보가 초기화 되지 않게
-retain_graph=True 를 해주어야 한다
-자연스럽게 마지막 backward 차례에는 꼭 retain_graph=True 를 선언할 필요가 없다
-loss 를 여러개 함께 조합해서 사용해야 하는 경우 다음 참조
-https://stackoverflow.com/questions/53994625/how-can-i-process-multi-loss-in-pytorch
+torch.Tensor 는 clone() 해주어야 함. Call by reference 처럼 동작하기 때문
 
-PatchGAN 이란 discriminator 의 출력으로 (N) 이 아닌 (N, 1, 16, 16) 으로 출력하여 계산하는 방식
-real_label, fake_label 의 모양도 (batch_size) 에서 (batch_size, *patch_size) 로 바뀜
+스케쥴러
+lr_lambda=lambda epoch: 1 - max(0, (epoch + start_epoch_num - decay_epoch_num) / (num_epoch - decay_epoch_num))
+lr 1 에서 0 까지 감소 시작 epoch 부터 같은 비율로 차차 줄이기

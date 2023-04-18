@@ -10,43 +10,55 @@ from DeepLearning import utils
 
 
 class Trainer:
-    def __init__(self, modelG, modelD, optimizerG, optimizerD, loss_fn_BCE, loss_fn_L1, train_dataloader, device):
+    def __init__(self, G_AB, G_BA, D_A, D_B, optimizerG, optimizerD, loss_fn_GAN, loss_fn_cycle, loss_fn_identity, train_dataloader, device, replay_buffer):
         """
         * 학습 관련 클래스
-        :param modelG: 학습 시킬 모델. 생성자
-        :param modelD: 학습 시킬 모델. 판별자
+        :param G_AB: 학습 시킬 모델. 생성자
+        :param G_BA: 학습 시킬 모델. 생성자
+        :param D_A: 학습 시킬 모델. 판별자
+        :param D_B: 학습 시킬 모델. 판별자
         :param optimizerG: 생성자 학습 optimizer
         :param optimizerD: 판별자 학습 optimizer
-        :param loss_fn_BCE: 손실 함수 (BCE loss)
-        :param loss_fn_L1: 손실 함수 (L1 loss)
+        :param loss_fn_GAN: 손실 함수 (GAN loss)
+        :param loss_fn_cycle: 손실 함수 (cycle loss)
+        :param loss_fn_identity: 손실 함수 (identity loss)
         :param train_dataloader: 학습용 데이터로더
         :param device: GPU / CPU
+        :param replay_buffer: replay buffer
         """
 
         # 학습 시킬 모델
-        self.modelG = modelG
-        self.modelD = modelD
+        self.G_AB = G_AB
+        self.G_BA = G_BA
+        self.D_A = D_A
+        self.D_B = D_B
         # 학습 optimizer
         self.optimizerG = optimizerG
         self.optimizerD = optimizerD
         # 손실 함수
-        self.loss_fn_BCE = loss_fn_BCE
-        self.loss_fn_L1 = loss_fn_L1
+        self.loss_fn_GAN = loss_fn_GAN
+        self.loss_fn_cycle = loss_fn_cycle
+        self.loss_fn_identity = loss_fn_identity
         # 학습용 데이터로더
         self.train_dataloader = train_dataloader
         # GPU / CPU
         self.device = device
 
-    def running(self, num_epoch, output_dir, tracking_frequency, Tester, test_dataloader, metric_fn_BCE, metric_fn_L1, checkpoint_file=None):
+        # replay buffer
+        self.replay_buffer = replay_buffer
+
+    def running(self, num_epoch, output_dir, decay_epoch_num, tracking_frequency, Tester, test_dataloader, metric_fn_GAN, metric_fn_cycle, metric_fn_identity, checkpoint_file=None):
         """
         * 학습 셋팅 및 진행
         :param num_epoch: 학습 반복 횟수
         :param output_dir: 결과물 파일 저장할 디렉터리 위치
+        :param decay_epoch_num: learning rate 줄어들기 시작하는 epoch 수
         :param tracking_frequency: 체크포인트 파일 저장 및 학습 진행 기록 빈도수
         :param Tester: 학습 성능 체크하기 위한 테스트 관련 클래스
         :param test_dataloader: 학습 성능 체크하기 위한 테스트용 데이터로더
-        :param metric_fn_BCE: 학습 성능 체크하기 위한 metric (BCE loss)
-        :param metric_fn_L1: 학습 성능 체크하기 위한 metric (L1 loss)
+        :param metric_fn_GAN: 학습 성능 체크하기 위한 metric (GAN loss)
+        :param metric_fn_cycle: 학습 성능 체크하기 위한 metric (cycle loss)
+        :param metric_fn_identity: 학습 성능 체크하기 위한 metric (identity loss)
         :param checkpoint_file: 불러올 체크포인트 파일
         :return: 학습 완료 및 체크포인트 파일 생성됨
         """
@@ -55,17 +67,27 @@ class Trainer:
         start_epoch_num = ConstVar.INITIAL_START_EPOCH_NUM
 
         # 각 모델 가중치 초기화
-        self.modelG.apply(weights_init)
-        self.modelD.apply(weights_init)
+        self.G_AB.apply(weights_init)
+        self.G_BA.apply(weights_init)
+        self.D_A.apply(weights_init)
+        self.D_B.apply(weights_init)
 
         # 불러올 체크포인트 파일 있을 경우 불러오기
         if checkpoint_file:
             state = utils.load_checkpoint(filepath=checkpoint_file)
-            self.modelG.load_state_dict(state[ConstVar.KEY_STATE_MODEL_G])
-            self.modelD.load_state_dict(state[ConstVar.KEY_STATE_MODEL_D])
+            self.G_AB.load_state_dict(state[ConstVar.KEY_STATE_G_AB])
+            self.G_BA.load_state_dict(state[ConstVar.KEY_STATE_G_BA])
+            self.D_A.load_state_dict(state[ConstVar.KEY_STATE_D_A])
+            self.D_B.load_state_dict(state[ConstVar.KEY_STATE_D_B])
             self.optimizerG.load_state_dict(state[ConstVar.KEY_STATE_OPTIMIZER_G])
             self.optimizerD.load_state_dict(state[ConstVar.KEY_STATE_OPTIMIZER_D])
             start_epoch_num = state[ConstVar.KEY_STATE_EPOCH] + 1
+
+        # optimizer learning rate 스케쥴러 선언
+        lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer=self.optimizerG,
+                                                           lr_lambda=lambda epoch: 1 - max(0, (epoch + start_epoch_num - decay_epoch_num) / (num_epoch - decay_epoch_num)))
+        lr_scheduler_D = torch.optim.lr_scheduler.LambdaLR(optimizer=self.optimizerD,
+                                                           lr_lambda=lambda epoch: 1 - max(0, (epoch + start_epoch_num - decay_epoch_num) / (num_epoch - decay_epoch_num)))
 
         # num epoch 만큼 학습 반복
         for current_epoch_num, count in enumerate(tqdm(range(num_epoch), desc='training process'), start=start_epoch_num):
@@ -77,10 +99,13 @@ class Trainer:
             if (count + 1) % tracking_frequency == 0:
 
                 # 현재 모델을 테스트하기 위한 테스트 객체 생성
-                tester = Tester(modelG=deepcopy(x=self.modelG),
-                                modelD=deepcopy(x=self.modelD),
-                                metric_fn_BCE=metric_fn_BCE,
-                                metric_fn_L1=metric_fn_L1,
+                tester = Tester(G_AB=deepcopy(x=self.G_AB),
+                                G_BA=deepcopy(x=self.G_BA),
+                                D_A=deepcopy(x=self.D_A),
+                                D_B=deepcopy(x=self.D_B),
+                                metric_fn_GAN=metric_fn_GAN,
+                                metric_fn_cycle=metric_fn_cycle,
+                                metric_fn_identity=metric_fn_identity,
                                 test_dataloader=test_dataloader,
                                 device=self.device)
                 tester.running()
@@ -91,8 +116,10 @@ class Trainer:
                 checkpoint_filepath = UtilLib.getNewPath(path=checkpoint_dir,
                                                          add=ConstVar.CHECKPOINT_FILE_NAME.format(current_epoch_num))
                 utils.save_checkpoint(filepath=checkpoint_filepath,
-                                      modelG=self.modelG,
-                                      modelD=self.modelD,
+                                      G_AB=self.G_AB,
+                                      G_BA=self.G_BA,
+                                      D_A=self.D_A,
+                                      D_B=self.D_B,
                                       optimizerG=self.optimizerG,
                                       optimizerD=self.optimizerD,
                                       epoch=current_epoch_num,
@@ -110,7 +137,11 @@ class Trainer:
                                                    add=ConstVar.PICS_FILE_NAME.format(current_epoch_num))
                 utils.save_pics(pics_list=tester.pics_list,
                                 filepath=pics_filepath,
-                                title=self.modelG.__class__.__name__)
+                                title=self.G_AB.__class__.__name__)
+
+            # learning rate 업데이트
+            lr_scheduler_G.step()
+            lr_scheduler_D.step()
 
     def _train(self):
         """
@@ -119,11 +150,13 @@ class Trainer:
         """
 
         # 각 모델을 학습 모드로 전환
-        self.modelG.train()
-        self.modelD.train()
+        self.G_AB.train()
+        self.G_BA.train()
+        self.D_A.train()
+        self.D_B.train()
 
-        # a shape: (N, 3, 224, 224)
-        # b shape: (N, 3, 224, 224)
+        # a shape: (N, 3, 256, 256)
+        # b shape: (N, 3, 256 256)
         for a, b in tqdm(self.train_dataloader, desc='train dataloader', leave=False):
 
             # 현재 배치 사이즈
@@ -140,30 +173,59 @@ class Trainer:
             a = a.to(self.device)
             b = b.to(self.device)
 
-            # 판별자 학습
-            self.modelD.zero_grad()
-            # real image 로 학습
-            output = self.modelD(b, a)
-            lossD_real = self.loss_fn_BCE(output, real_label)
-            lossD_real.backward()
-            # fake image 로 학습
-            fake_b = self.modelG(a)
-            output = self.modelD(fake_b.detach(), a)
-            lossD_fake = self.loss_fn_BCE(output, fake_label)
-            lossD_fake.backward()
-            self.optimizerD.step()
-
+            # ----------
             # 생성자 학습
-            self.modelG.zero_grad()
-            # 판별자의 결과에 대한 BCE loss 로 학습
-            fake_b = self.modelG(a)
-            output = self.modelD(fake_b, a)
-            lossG_BCE = self.loss_fn_BCE(output, real_label)
-            lossG_BCE.backward(retain_graph=True)
-            # fake_b 와 b 간의 L1 loss 로 학습
-            lossG_L1 = self.loss_fn_L1(fake_b, b)
-            lossG_L1.backward()
+            # ----------
+
+            # GAN loss
+            fake_b = self.G_AB(a)
+            loss_G_GAN_AB = self.loss_fn_GAN(self.D_B(fake_b), real_label)
+            fake_a = self.G_BA(b)
+            loss_G_GAN_BA = self.loss_fn_GAN(self.D_A(fake_a), real_label)
+            loss_G_GAN = (loss_G_GAN_AB + loss_G_GAN_BA) / 2
+
+            # Cycle loss
+            rec_a = self.G_BA(fake_b)
+            loss_G_cycle_A = self.loss_fn_cycle(rec_a, a)
+            rec_b = self.G_AB(fake_a)
+            loss_G_cycle_B = self.loss_fn_cycle(rec_b, b)
+            loss_G_cycle = (loss_G_cycle_A + loss_G_cycle_B) / 2
+
+            # Identity loss
+            loss_G_identity_A = self.loss_fn_identity(self.G_BA(a), a)
+            loss_G_identity_B = self.loss_fn_identity(self.G_AB(b), b)
+            loss_G_identity = (loss_G_identity_A + loss_G_identity_B) / 2
+
+            # Total loss
+            loss_G = loss_G_GAN + loss_G_cycle + loss_G_identity
+
+            # 역전파
+            self.optimizerG.zero_grad()
+            loss_G.backward()
             self.optimizerG.step()
+
+            # ----------
+            # 판별자 학습
+            # ----------
+
+            # GAN loss
+            loss_D_GAN_A_real = self.loss_fn_GAN(self.D_A(a), real_label)
+            fake_a = self.replay_buffer.push_and_pop(fake_data_batch=fake_a)
+            loss_D_GAN_A_fake = self.loss_fn_GAN(self.D_A(fake_a.detach()), fake_label)
+            loss_D_GAN_A = loss_D_GAN_A_real + loss_D_GAN_A_fake
+            loss_D_GAN_B_real = self.loss_fn_GAN(self.D_B(b), real_label)
+            fake_b = self.replay_buffer.push_and_pop(fake_data_batch=fake_b)
+            loss_D_GAN_B_fake = self.loss_fn_GAN(self.D_B(fake_b.detach()), fake_label)
+            loss_D_GAN_B = loss_D_GAN_B_real + loss_D_GAN_B_fake
+            loss_D_GAN = (loss_D_GAN_A + loss_D_GAN_B) / 2
+
+            # Total loss
+            loss_D = loss_D_GAN
+
+            # 역전파
+            self.optimizerD.zero_grad()
+            loss_D.backward()
+            self.optimizerD.step()
 
     def _check_is_best(self, tester, best_checkpoint_dir):
         """

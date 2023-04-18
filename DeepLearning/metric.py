@@ -1,31 +1,46 @@
 import torch.nn.functional as F
 
 
-def bce_loss(output, label):
+def GAN_loss(output, label):
     """
-    * 해당 배치의 BCE loss 구하기
-    :param output: shape: (batch)
-    :param label: shape: (batch)
-    :return: 해당하는 배치의 BCE loss
+    * 해당 배치의 GAN loss 구하기
+    :param output: shape: (batch, patch_size)
+    :param label: shape: (batch, patch_size)
+    :return: 해당하는 배치의 GAN loss
     """
 
-    # BCE loss 계산
-    batch_bce_loss = F.binary_cross_entropy(input=output,
+    # GAN loss 계산
+    batch_GAN_loss = F.binary_cross_entropy(input=output,
                                             target=label).item()
 
-    return batch_bce_loss
+    return batch_GAN_loss
 
 
-def l1_loss(fake_b, b):
+def cycle_loss(reconstructed_data, original_data):
     """
-    * 해당 배치의 L1 loss 구하기
-    :param fake_b: shape: (batch, SHAPE)
-    :param b: shape: (batch, SHAPE)
-    :return: 해당하는 배치의 L1 loss
+    * 해당 배치의 cycle loss 구하기
+    :param reconstructed_data: shape: (batch, SHAPE)
+    :param original_data: shape: (batch, SHAPE)
+    :return: 해당하는 배치의 cycle loss
     """
 
-    # L1 loss 계산
-    batch_l1_loss = F.l1_loss(input=fake_b,
-                              target=b).item()
+    # cycle loss 계산
+    batch_cycle_loss = F.l1_loss(input=reconstructed_data,
+                                 target=original_data).item()
 
-    return batch_l1_loss
+    return batch_cycle_loss
+
+
+def identity_loss(identity_transformed_data, original_data):
+    """
+    * 해당 배치의 identity loss 구하기
+    :param identity_transformed_data: shape: (batch, SHAPE)
+    :param original_data: shape: (batch, SHAPE)
+    :return: 해당하는 배치의 identity loss
+    """
+
+    # identity loss 계산
+    batch_identity_loss = F.l1_loss(input=identity_transformed_data,
+                                    target=original_data).item()
+
+    return batch_identity_loss

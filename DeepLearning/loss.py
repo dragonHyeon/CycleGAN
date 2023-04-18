@@ -1,7 +1,8 @@
 import torch.nn as nn
 
-loss_fn_BCE = nn.BCELoss()
-
+loss_fn_GAN = nn.BCELoss()
+loss_fn_cycle = nn.L1Loss()
+loss_fn_identity = nn.L1Loss()
 
 """
 nn.BCELoss()
@@ -16,9 +17,6 @@ target(실제 값): target 값. ex) [0, 1]
 loss_fn = nn.BCELoss()
 loss_fn(input, target)
 """
-
-loss_fn_L1 = nn.L1Loss()
-
 
 """
 nn.L1Loss()
