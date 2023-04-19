@@ -1,4 +1,4 @@
-import os
+import os, random
 
 from PIL import Image
 from torchvision import transforms
@@ -58,10 +58,25 @@ class VanGogh2PhotoDataset(Dataset):
 
     def __getitem__(self, item):
 
-        # a 데이터 인덱스
-        a_index = item % len(self.files_a)
-        # b 데이터 인덱스
-        b_index = item % len(self.files_b)
+        # 학습 모드시 데이터 학습 쌍을 다양하게 제공. 개수가 더 많은 데이터 쪽을 랜덤으로 뽑아 겹치는 데이터 학습 쌍을 최소화
+        if self.mode_train_test == ConstVar.MODE_TRAIN:
+            if len(self.files_a) >= len(self.files_b):
+                # a 데이터 인덱스
+                a_index = random.randint(0, len(self.files_a) - 1)
+                # b 데이터 인덱스
+                b_index = item % len(self.files_b)
+            else:
+                # a 데이터 인덱스
+                a_index = item % len(self.files_a)
+                # b 데이터 인덱스
+                b_index = random.randint(0, len(self.files_b) - 1)
+
+        # 테스트 모드시 데이터 학습 쌍을 일관되게 제공
+        elif self.mode_train_test == ConstVar.MODE_TEST:
+            # a 데이터 인덱스
+            a_index = item % len(self.files_a)
+            # b 데이터 인덱스
+            b_index = item % len(self.files_b)
 
         # a 데이터
         a = self.transform[self.mode_train_test](Image.open(fp=self.files_a[a_index]))

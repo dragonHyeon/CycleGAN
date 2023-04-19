@@ -1,5 +1,5 @@
-# PyTorch pix2pix
-- 파이토치 Image-To-Image Translation With Conditional Adversarial Networks
+# PyTorch CycleGAN
+- 파이토치 Unpaired Image-To-Image Translation Using Cycle-Consistent Adversarial Networks
 ___
 ### 프로그램 실행 방법
 - 학습
@@ -13,7 +13,6 @@ ___
 - 모델 파일 저장 및 불러오기
 - 학습 진행 과정 그래프로 시각화
 - 학습 결과물 이미지로 저장
-- 데이터 변환 방향 선택하여 학습 가능 (a2b 또는 b2a)
 ---
 ### 프로그램 구조
 - Main/run_train.py 및 Main/run_test.py 에서 디바이스, 모델, optimizer, dataloader, 손실 함수, metric 등 모두 선언 및 실행

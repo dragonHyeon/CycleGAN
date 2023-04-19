@@ -37,7 +37,8 @@ NUM_PICS_LIST = 10
 
 # 그 외 기본 설정 값
 RESIZE_SIZE = 256
-LAMBDA = 100
+LAMBDA_CYCLE = 10.0
+LAMBDA_IDENTITY = 5.0
 
 # state 저장시 딕셔너리 키 값
 KEY_STATE_G_AB = 'G_AB'

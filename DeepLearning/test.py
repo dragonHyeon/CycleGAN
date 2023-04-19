@@ -90,9 +90,9 @@ class Tester:
             a = a.to(self.device)
             b = b.to(self.device)
 
-            # -----------
-            # 생성자 테스트
-            # -----------
+            # -----------------
+            #  Test Generators
+            # -----------------
 
             # GAN loss
             fake_b = self.G_AB(a)
@@ -114,14 +114,14 @@ class Tester:
             score_G_identity = (score_G_identity_A + score_G_identity_B) / 2
 
             # Total loss
-            score_G = score_G_GAN + score_G_cycle + score_G_identity
+            score_G = score_G_GAN + ConstVar.LAMBDA_CYCLE * score_G_cycle + ConstVar.LAMBDA_IDENTITY * score_G_identity
 
             # 배치 마다의 생성자 G score 계산
             batch_score_listG.append(score_G)
 
-            # -----------
-            # 판별자 테스트
-            # -----------
+            # ---------------------
+            #  Test Discriminators
+            # ---------------------
 
             # GAN loss
             score_D_GAN_A_real = self.metric_fn_GAN(self.D_A(a), real_label)

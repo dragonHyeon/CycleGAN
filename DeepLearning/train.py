@@ -173,9 +173,9 @@ class Trainer:
             a = a.to(self.device)
             b = b.to(self.device)
 
-            # ----------
-            # 생성자 학습
-            # ----------
+            # ------------------
+            #  Train Generators
+            # ------------------
 
             # GAN loss
             fake_b = self.G_AB(a)
@@ -197,16 +197,16 @@ class Trainer:
             loss_G_identity = (loss_G_identity_A + loss_G_identity_B) / 2
 
             # Total loss
-            loss_G = loss_G_GAN + loss_G_cycle + loss_G_identity
+            loss_G = loss_G_GAN + ConstVar.LAMBDA_CYCLE * loss_G_cycle + ConstVar.LAMBDA_IDENTITY * loss_G_identity
 
             # 역전파
             self.optimizerG.zero_grad()
             loss_G.backward()
             self.optimizerG.step()
 
-            # ----------
-            # 판별자 학습
-            # ----------
+            # ----------------------
+            #  Train Discriminators
+            # ----------------------
 
             # GAN loss
             loss_D_GAN_A_real = self.loss_fn_GAN(self.D_A(a), real_label)
