@@ -85,9 +85,9 @@ class Trainer:
 
         # optimizer learning rate 스케쥴러 선언
         lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(optimizer=self.optimizerG,
-                                                           lr_lambda=lambda epoch: 1 - max(0, (epoch + start_epoch_num - decay_epoch_num) / (num_epoch - decay_epoch_num)))
+                                                           lr_lambda=lambda epoch: 1 - max(0, (epoch + start_epoch_num - 1 - decay_epoch_num) / (num_epoch - decay_epoch_num)))
         lr_scheduler_D = torch.optim.lr_scheduler.LambdaLR(optimizer=self.optimizerD,
-                                                           lr_lambda=lambda epoch: 1 - max(0, (epoch + start_epoch_num - decay_epoch_num) / (num_epoch - decay_epoch_num)))
+                                                           lr_lambda=lambda epoch: 1 - max(0, (epoch + start_epoch_num - 1 - decay_epoch_num) / (num_epoch - decay_epoch_num)))
 
         # num epoch 만큼 학습 반복
         for current_epoch_num in tqdm(range(start_epoch_num, num_epoch + 1),
