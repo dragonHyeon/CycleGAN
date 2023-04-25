@@ -10,7 +10,7 @@ from DeepLearning import utils
 
 
 class Trainer:
-    def __init__(self, G_AB, G_BA, D_A, D_B, optimizerG, optimizerD, loss_fn_GAN, loss_fn_cycle, loss_fn_identity, train_dataloader, device, replay_buffer):
+    def __init__(self, G_AB, G_BA, D_A, D_B, optimizerG, optimizerD, loss_fn_GAN, loss_fn_cycle, loss_fn_identity, train_dataloader, device, replay_buffer_A, replay_buffer_B):
         """
         * 학습 관련 클래스
         :param G_AB: 학습 시킬 모델. 생성자
@@ -24,7 +24,8 @@ class Trainer:
         :param loss_fn_identity: 손실 함수 (identity loss)
         :param train_dataloader: 학습용 데이터로더
         :param device: GPU / CPU
-        :param replay_buffer: replay buffer
+        :param replay_buffer_A: replay buffer
+        :param replay_buffer_B: replay buffer
         """
 
         # 학습 시킬 모델
@@ -45,7 +46,8 @@ class Trainer:
         self.device = device
 
         # replay buffer
-        self.replay_buffer = replay_buffer
+        self.replay_buffer_A = replay_buffer_A
+        self.replay_buffer_B = replay_buffer_B
 
     def running(self, num_epoch, output_dir, decay_epoch_num, tracking_frequency, Tester, test_dataloader, metric_fn_GAN, metric_fn_cycle, metric_fn_identity, checkpoint_file=None):
         """
@@ -213,11 +215,11 @@ class Trainer:
 
             # GAN loss
             loss_D_GAN_A_real = self.loss_fn_GAN(self.D_A(a), real_label)
-            fake_a = self.replay_buffer.push_and_pop(fake_data_batch=fake_a)
+            fake_a = self.replay_buffer_A.push_and_pop(fake_data_batch=fake_a)
             loss_D_GAN_A_fake = self.loss_fn_GAN(self.D_A(fake_a.detach()), fake_label)
             loss_D_GAN_A = loss_D_GAN_A_real + loss_D_GAN_A_fake
             loss_D_GAN_B_real = self.loss_fn_GAN(self.D_B(b), real_label)
-            fake_b = self.replay_buffer.push_and_pop(fake_data_batch=fake_b)
+            fake_b = self.replay_buffer_B.push_and_pop(fake_data_batch=fake_b)
             loss_D_GAN_B_fake = self.loss_fn_GAN(self.D_B(fake_b.detach()), fake_label)
             loss_D_GAN_B = loss_D_GAN_B_real + loss_D_GAN_B_fake
             loss_D_GAN = (loss_D_GAN_A + loss_D_GAN_B) / 2

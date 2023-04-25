@@ -179,7 +179,8 @@ def run_program(args):
                                                               mode_train_test=ConstVar.MODE_TEST))
 
     # replay buffer 선언
-    replay_buffer = utils.ReplayBuffer(replay_buffer_max_size=args.replay_buffer_max_size)
+    replay_buffer_A = utils.ReplayBuffer(replay_buffer_max_size=args.replay_buffer_max_size)
+    replay_buffer_B = utils.ReplayBuffer(replay_buffer_max_size=args.replay_buffer_max_size)
 
     # 모델 학습 객체 선언
     trainer = Trainer(G_AB=G_AB,
@@ -193,7 +194,8 @@ def run_program(args):
                       loss_fn_identity=loss_fn_identity,
                       train_dataloader=train_dataloader,
                       device=device,
-                      replay_buffer=replay_buffer)
+                      replay_buffer_A=replay_buffer_A,
+                      replay_buffer_B=replay_buffer_B)
 
     # 모델 학습
     trainer.running(num_epoch=args.num_epoch,

@@ -140,7 +140,7 @@ class ReplayBuffer:
         for fake_data in fake_data_batch:
 
             # (in_channels (3), H (256), W (256)) -> (1, in_channels (3), H (256), W (256))
-            fake_data = torch.unsqueeze(input=fake_data, dim=0)
+            fake_data = torch.unsqueeze(input=fake_data.data, dim=0)
 
             # replay buffer 가 아직 가득 차있지 않은 경우 replay buffer 에 데이터 채우면서 들어오는 데이터 바로바로 반환하기
             if len(self.replay_buffer) < self.replay_buffer_max_size:
