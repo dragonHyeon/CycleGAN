@@ -1,7 +1,5 @@
 import os, sys, argparse, itertools
 
-from DeepLearning import utils
-
 
 def set_path():
     """
@@ -139,6 +137,7 @@ def run_program(args):
     from torch.utils.data import DataLoader
 
     from Common import ConstVar
+    from DeepLearning import utils
     from DeepLearning.train import Trainer
     from DeepLearning.test import Tester
     from DeepLearning.dataloader import VanGogh2PhotoDataset
