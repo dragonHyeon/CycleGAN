@@ -42,14 +42,12 @@ class VanGogh2PhotoDataset(Dataset):
             ConstVar.MODE_TRAIN: transforms.Compose([
                 transforms.Resize(size=(ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=(0.5, 0.5, 0.5),
-                                     std=(0.5, 0.5, 0.5))
+                transforms.Normalize(mean=ConstVar.NORMALIZE_MEAN, std=ConstVar.NORMALIZE_STD)
             ]),
             ConstVar.MODE_TEST: transforms.Compose([
                 transforms.Resize(size=(ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE)),
                 transforms.ToTensor(),
-                transforms.Normalize(mean=(0.5, 0.5, 0.5),
-                                     std=(0.5, 0.5, 0.5))
+                transforms.Normalize(mean=ConstVar.NORMALIZE_MEAN, std=ConstVar.NORMALIZE_STD)
             ])
         }
 
