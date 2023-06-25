@@ -15,3 +15,6 @@ torch.Tensor 는 clone() 해주어야 함. Call by reference 처럼 동작하기
 스케쥴러
 lr_lambda=lambda epoch: 1 - max(0, (epoch + start_epoch_num - decay_epoch_num) / (num_epoch - decay_epoch_num))
 lr 1 에서 0 까지 감소 시작 epoch 부터 같은 비율로 차차 줄이기
+
+RuntimeError: Input type (torch.FloatTensor) and weight type (torch.cuda.FloatTensor) should be the same or input should be a MKLDNN tensor and weight is a dense tensor
+전에 본 에러 같은데 디바이스 같은곳에 놓으면 해결되는 에러

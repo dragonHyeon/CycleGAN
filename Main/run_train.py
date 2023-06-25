@@ -139,7 +139,6 @@ def run_program(args):
     from Common import ConstVar
     from DeepLearning import utils
     from DeepLearning.train import Trainer
-    from DeepLearning.test import Tester
     from DeepLearning.dataloader import VanGogh2PhotoDataset
     from DeepLearning.model import GeneratorResNet, Discriminator
     from DeepLearning.loss import loss_fn_GAN, loss_fn_cycle, loss_fn_identity
@@ -188,10 +187,10 @@ def run_program(args):
                       D_B=D_B,
                       optimizerG=optimizerG,
                       optimizerD=optimizerD,
-                      loss_fn_GAN=loss_fn_GAN,
-                      loss_fn_cycle=loss_fn_cycle,
-                      loss_fn_identity=loss_fn_identity,
+                      loss_fn=None,
+                      metric_fn=None,
                       train_dataloader=train_dataloader,
+                      test_dataloader=test_dataloader,
                       device=device,
                       replay_buffer_A=replay_buffer_A,
                       replay_buffer_B=replay_buffer_B)
@@ -201,11 +200,6 @@ def run_program(args):
                     output_dir=args.output_dir,
                     decay_epoch_num=args.decay_epoch_num,
                     tracking_frequency=args.tracking_frequency,
-                    Tester=Tester,
-                    test_dataloader=test_dataloader,
-                    metric_fn_GAN=GAN_loss,
-                    metric_fn_cycle=cycle_loss,
-                    metric_fn_identity=identity_loss,
                     checkpoint_file=args.checkpoint_file)
 
 
