@@ -18,8 +18,8 @@ class GeneratorResNet(nn.Module):
         # (N, in_channels (3), H (256), W (256)) -> (N, out_features (64), 256, 256)
         out_features = 64
         layer = [
-            # (N, in_channels (3), H (256), W (256)) -> (N, in_channels (3), H+2*in_channels(3), W+2*in_channels(3))
-            nn.ReflectionPad2d(padding=in_channels),
+            # (N, in_channels (3), H (256), W (256)) -> (N, in_channels (3), H+6, W+6)
+            nn.ReflectionPad2d(padding=3),
             # (N, 3, 262, 262) -> (N, out_features (64), 256, 256)
             nn.Conv2d(in_channels=in_channels, out_channels=out_features, kernel_size=7, stride=1, padding=0, bias=True),
             nn.InstanceNorm2d(num_features=out_features),
@@ -59,8 +59,8 @@ class GeneratorResNet(nn.Module):
         # Output layer
         # (N, 64, 256, 256) -> (N, out_channels (3), 256, 256)
         layer += [
-            # (N, 64, 256, 256) -> (N, 64, 256+2*in_channels(3), 256+2*in_channels(3))
-            nn.ReflectionPad2d(in_channels),
+            # (N, 64, 256, 256) -> (N, 64, 262, 262)
+            nn.ReflectionPad2d(padding=3),
             # (N, 64, 262, 262) -> (N, out_channels (3), 256, 256)
             nn.Conv2d(in_channels=out_features, out_channels=out_channels, kernel_size=7, stride=1, padding=0, bias=True),
             nn.Tanh()
@@ -100,8 +100,7 @@ class Discriminator(nn.Module):
             # (N, 256, H/8, W/8) -> (N, 512, H/16, W/16)
             DisBlock(in_channels=256, out_channels=512),
             # (N, 512, H/16, W/16) -> (N, 1, H/16 (16), W/16 (16))
-            nn.Conv2d(in_channels=512, out_channels=1, kernel_size=3, stride=1, padding=1),
-            nn.Sigmoid()
+            nn.Conv2d(in_channels=512, out_channels=1, kernel_size=3, stride=1, padding=1)
         )
 
     def forward(self, x):
@@ -111,7 +110,7 @@ class Discriminator(nn.Module):
         :return: 배치 개수 만큼의 16 x 16 patch 의 참 거짓 판별 결과. (N, 1, H/16 (16), W/16 (16))
         """
 
-        # (N, in_channels, H (256), W (256)) -> (N, 1, H/16 (16), W/16 (16))
+        # (N, in_channels (3), H (256), W (256)) -> (N, 1, H/16 (16), W/16 (16))
         x = self.main(x)
 
         return x

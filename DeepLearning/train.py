@@ -146,7 +146,7 @@ class Trainer:
         self.D_A.train()
         self.D_B.train()
 
-        bce = nn.BCELoss()
+        mse = nn.MSELoss()
         l1 = nn.L1Loss()
 
         # a shape: (N, 3, 256, 256)
@@ -173,9 +173,9 @@ class Trainer:
 
             # GAN loss
             fake_b = self.G_AB(a)
-            loss_G_GAN_AB = bce(self.D_B(fake_b), real_label)
+            loss_G_GAN_AB = mse(self.D_B(fake_b), real_label)
             fake_a = self.G_BA(b)
-            loss_G_GAN_BA = bce(self.D_A(fake_a), real_label)
+            loss_G_GAN_BA = mse(self.D_A(fake_a), real_label)
             loss_G_GAN = (loss_G_GAN_AB + loss_G_GAN_BA) / 2
 
             # Cycle loss
@@ -203,13 +203,13 @@ class Trainer:
             # ----------------------
 
             # GAN loss
-            loss_D_GAN_A_real = bce(self.D_A(a), real_label)
+            loss_D_GAN_A_real = mse(self.D_A(a), real_label)
             fake_a = self.replay_buffer_A.push_and_pop(fake_data_batch=fake_a)
-            loss_D_GAN_A_fake = bce(self.D_A(fake_a.detach()), fake_label)
+            loss_D_GAN_A_fake = mse(self.D_A(fake_a.detach()), fake_label)
             loss_D_GAN_A = loss_D_GAN_A_real + loss_D_GAN_A_fake
-            loss_D_GAN_B_real = bce(self.D_B(b), real_label)
+            loss_D_GAN_B_real = mse(self.D_B(b), real_label)
             fake_b = self.replay_buffer_B.push_and_pop(fake_data_batch=fake_b)
-            loss_D_GAN_B_fake = bce(self.D_B(fake_b.detach()), fake_label)
+            loss_D_GAN_B_fake = mse(self.D_B(fake_b.detach()), fake_label)
             loss_D_GAN_B = loss_D_GAN_B_real + loss_D_GAN_B_fake
             loss_D_GAN = (loss_D_GAN_A + loss_D_GAN_B) / 2
 
@@ -234,7 +234,7 @@ class Trainer:
         self.D_B.eval()
 
         # loss 선언
-        bce = nn.BCELoss()
+        mse = nn.MSELoss()
         l1 = nn.L1Loss()
 
         # 배치 마다의 score 담을 리스트
@@ -268,9 +268,9 @@ class Trainer:
 
             # GAN loss
             fake_b = self.G_AB(a)
-            score_G_GAN_AB = bce(self.D_B(fake_b), real_label)
+            score_G_GAN_AB = mse(self.D_B(fake_b), real_label)
             fake_a = self.G_BA(b)
-            score_G_GAN_BA = bce(self.D_A(fake_a), real_label)
+            score_G_GAN_BA = mse(self.D_A(fake_a), real_label)
             score_G_GAN = (score_G_GAN_AB + score_G_GAN_BA) / 2
 
             # Cycle loss
@@ -296,11 +296,11 @@ class Trainer:
             # ---------------------
 
             # GAN loss
-            score_D_GAN_A_real = bce(self.D_A(a), real_label)
-            score_D_GAN_A_fake = bce(self.D_A(fake_a), fake_label)
+            score_D_GAN_A_real = mse(self.D_A(a), real_label)
+            score_D_GAN_A_fake = mse(self.D_A(fake_a), fake_label)
             score_D_GAN_A = score_D_GAN_A_real + score_D_GAN_A_fake
-            score_D_GAN_B_real = bce(self.D_B(b), real_label)
-            score_D_GAN_B_fake = bce(self.D_B(fake_b), fake_label)
+            score_D_GAN_B_real = mse(self.D_B(b), real_label)
+            score_D_GAN_B_fake = mse(self.D_B(fake_b), fake_label)
             score_D_GAN_B = score_D_GAN_B_real + score_D_GAN_B_fake
             score_D_GAN = (score_D_GAN_A + score_D_GAN_B) / 2
 
@@ -395,12 +395,12 @@ class Trainer:
         mean = torch.tensor(ConstVar.NORMALIZE_MEAN)
         std = torch.tensor(ConstVar.NORMALIZE_STD)
         plt_pics_list = [(
-            (a.cpu().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
-            (b.cpu().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
-            (fake_a.cpu().detach().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
-            (fake_b.cpu().detach().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
-            (rec_a.cpu().detach().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
-            (rec_b.cpu().detach().reshape(-1, 256, 256) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0)
+            (a.cpu().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
+            (b.cpu().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
+            (fake_a.cpu().detach().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
+            (fake_b.cpu().detach().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
+            (rec_a.cpu().detach().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0),
+            (rec_b.cpu().detach().reshape(-1, ConstVar.RESIZE_SIZE, ConstVar.RESIZE_SIZE) * std[:, None, None] + mean[:, None, None]).permute(1, 2, 0)
         ) for a, b, fake_a, fake_b, rec_a, rec_b in pics_list]
 
         # 시각화 진행
